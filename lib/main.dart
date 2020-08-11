@@ -29,17 +29,19 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final PageController _parentPageController = PageController(viewportFraction: 1);
-  final PageController _childPageController = PageController();
-  final ScrollController _scrollController = ScrollController();
 
   List<List<FlutterLogo>> _listOfFlutterLogos = [];
   int _currentPage = 0;
-  Map<int, int> childSelectionMap = {};
+  Map<int, int> _childSelectionMap = {};
+  Map<int, PageController> _childPageControllers = {};
+  Map<int, ScrollController> _childScrollControllers = {};
 
   @override
   void dispose() {
     _parentPageController.dispose();
-    _childPageController.dispose();
+    for (PageController pageController in _childPageControllers.values) {
+      pageController.dispose();
+    }
     super.dispose();
   }
 
@@ -71,8 +73,10 @@ class _MyHomePageState extends State<MyHomePage> {
           controller: _parentPageController,
           itemCount: _listOfFlutterLogos.length,
           onPageChanged: (parentPage) {
+            print("Parent Page is changing: $parentPage");
             setState(() {
               _currentPage = parentPage;
+              _updateSelectedChildPage();
             });
           },
           itemBuilder: (context, parentIndex) {
@@ -82,34 +86,30 @@ class _MyHomePageState extends State<MyHomePage> {
                 Expanded(
                   child: PageView.builder(
                       physics: NeverScrollableScrollPhysics(),
-                      controller: _childPageController,
+                      controller: _getCurrentChildPageController(),
                       onPageChanged: (childPage) {
+                        print("Child Page is changing. Parent Page: $parentIndex, Child Page: $childPage");
                         setState(() {
-                          childSelectionMap[_currentPage] = childPage;
+                          _childSelectionMap[_currentPage] = childPage;
                         });
                       },
                       itemCount: flutterLogos.length,
                       itemBuilder: (context, childIndex) {
                         FlutterLogo flutterLogo = flutterLogos[childIndex];
-                        return Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Expanded(child: flutterLogo),
-                          ],
-                        );
+                        return _getFlutterLogoWithIndex(flutterLogo, childIndex);
                       }),
                 ),
                 Expanded(
                   child: ListView.builder(
-                      controller: _scrollController,
+                      controller: _getCurrentChildScrollController(),
                       scrollDirection: Axis.horizontal,
                       itemCount: flutterLogos.length,
                       itemBuilder: (context, flutterLogoIndex) {
                         return InkWell(
                           onTap: () {
                             setState(() {
-                              _childPageController.animateToPage(flutterLogoIndex,
-                                  duration: kTabScrollDuration, curve: Curves.easeIn);
+                              _getCurrentChildPageController()
+                                  .animateToPage(flutterLogoIndex, duration: kTabScrollDuration, curve: Curves.easeIn);
                             });
                           },
                           child: Column(
@@ -118,10 +118,10 @@ class _MyHomePageState extends State<MyHomePage> {
                               Container(
                                 width: 60,
                                 height: 60,
-                                child: flutterLogos[flutterLogoIndex],
+                                child: _getFlutterLogoWithIndex(flutterLogos[flutterLogoIndex], flutterLogoIndex),
                               ),
                               Container(
-                                color: childSelectionMap[_currentPage] == flutterLogoIndex ? Colors.blue : Colors.transparent,
+                                color: _childSelectionMap[_currentPage] == flutterLogoIndex ? Colors.blue : Colors.transparent,
                                 height: 10,
                                 width: 20,
                               )
@@ -131,10 +131,55 @@ class _MyHomePageState extends State<MyHomePage> {
                       }),
                 ),
                 Text("Total Parent Lists: ${_listOfFlutterLogos.length}"),
-                Text("Current Page: $_currentPage"),
+                Text("Current Parent Page: $_currentPage"),
               ],
             );
           }),
     );
+  }
+
+  PageController _getCurrentChildPageController() {
+    if (!_childPageControllers.containsKey(_currentPage)) {
+      _childPageControllers[_currentPage] = PageController();
+    }
+
+    return _childPageControllers[_currentPage];
+  }
+
+  PageController _getCurrentChildScrollController() {
+    if (!_childScrollControllers.containsKey(_currentPage)) {
+      _childScrollControllers[_currentPage] = PageController();
+    }
+
+    return _childScrollControllers[_currentPage];
+  }
+
+  Widget _getFlutterLogoWithIndex(Widget widget, int index) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(width: 300, height: 300, child: widget),
+        Text("$index"),
+      ],
+    );
+  }
+
+  Future<void> _updateSelectedChildPage() async {
+    //If delay commented out, it will crash.
+    //ScrollController not attached to any scroll views.
+    await Future.delayed(Duration(seconds: 1));
+
+    setState(() {
+      int currentChildPage = _childSelectionMap[_currentPage];
+      PageController childPageController = _getCurrentChildPageController();
+      //Brand new page doesn't have a value yet therefore don't need to do any updates
+      if (currentChildPage != null) {
+        //If scrolling fast, controller gets detached and
+        //ScrollController not attached to any scroll views. exception is thrown
+        if (childPageController.positions.length == 1) {
+          _getCurrentChildPageController().jumpToPage(currentChildPage);
+        }
+      }
+    });
   }
 }
