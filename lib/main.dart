@@ -31,7 +31,8 @@ class _MyHomePageState extends State<MyHomePage> {
   final PageController _parentPageController = PageController(viewportFraction: 1);
 
   List<List<FlutterLogo>> _listOfFlutterLogos = [];
-  int _currentPage = 0;
+  int _currentParentPage = 0;
+  int _currentChildPage = 0;
   Map<int, int> _childSelectionMap = {};
   Map<int, PageController> _childPageControllers = {};
   Map<int, ScrollController> _childScrollControllers = {};
@@ -41,6 +42,9 @@ class _MyHomePageState extends State<MyHomePage> {
     _parentPageController.dispose();
     for (PageController pageController in _childPageControllers.values) {
       pageController.dispose();
+    }
+    for (ScrollController scrollController in _childScrollControllers.values) {
+      scrollController.dispose();
     }
     super.dispose();
   }
@@ -63,7 +67,7 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Text("Add Child"),
             onPressed: () {
               setState(() {
-                _listOfFlutterLogos[_currentPage].add(FlutterLogo());
+                _listOfFlutterLogos[_currentParentPage].add(FlutterLogo());
               });
             },
           ),
@@ -75,7 +79,7 @@ class _MyHomePageState extends State<MyHomePage> {
           onPageChanged: (parentPage) {
             print("Parent Page is changing: $parentPage");
             setState(() {
-              _currentPage = parentPage;
+              _currentParentPage = parentPage;
               _updateSelectedChildPage();
             });
           },
@@ -90,7 +94,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       onPageChanged: (childPage) {
                         print("Child Page is changing. Parent Page: $parentIndex, Child Page: $childPage");
                         setState(() {
-                          _childSelectionMap[_currentPage] = childPage;
+                          _currentChildPage = childPage;
+                          _childSelectionMap[_currentParentPage] = childPage;
                         });
                       },
                       itemCount: flutterLogos.length,
@@ -121,7 +126,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 child: _getFlutterLogoWithIndex(flutterLogos[flutterLogoIndex], flutterLogoIndex),
                               ),
                               Container(
-                                color: _childSelectionMap[_currentPage] == flutterLogoIndex ? Colors.blue : Colors.transparent,
+                                color:
+                                    _childSelectionMap[_currentParentPage] == flutterLogoIndex ? Colors.blue : Colors.transparent,
                                 height: 10,
                                 width: 20,
                               )
@@ -131,7 +137,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       }),
                 ),
                 Text("Total Parent Lists: ${_listOfFlutterLogos.length}"),
-                Text("Current Parent Page: $_currentPage"),
+                Text("Current Parent Page: $_currentParentPage"),
               ],
             );
           }),
@@ -139,19 +145,19 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   PageController _getCurrentChildPageController() {
-    if (!_childPageControllers.containsKey(_currentPage)) {
-      _childPageControllers[_currentPage] = PageController();
+    if (!_childPageControllers.containsKey(_currentParentPage)) {
+      _childPageControllers[_currentParentPage] = PageController();
     }
 
-    return _childPageControllers[_currentPage];
+    return _childPageControllers[_currentParentPage];
   }
 
-  PageController _getCurrentChildScrollController() {
-    if (!_childScrollControllers.containsKey(_currentPage)) {
-      _childScrollControllers[_currentPage] = PageController();
+  ScrollController _getCurrentChildScrollController() {
+    if (!_childScrollControllers.containsKey(_currentChildPage)) {
+      _childScrollControllers[_currentChildPage] = ScrollController();
     }
 
-    return _childScrollControllers[_currentPage];
+    return _childScrollControllers[_currentChildPage];
   }
 
   Widget _getFlutterLogoWithIndex(Widget widget, int index) {
@@ -170,13 +176,15 @@ class _MyHomePageState extends State<MyHomePage> {
     await Future.delayed(Duration(seconds: 1));
 
     setState(() {
-      int currentChildPage = _childSelectionMap[_currentPage];
+      int currentChildPage = _childSelectionMap[_currentParentPage];
       PageController childPageController = _getCurrentChildPageController();
       //Brand new page doesn't have a value yet therefore don't need to do any updates
       if (currentChildPage != null) {
         //If scrolling fast, controller gets detached and
         //ScrollController not attached to any scroll views. exception is thrown
-        if (childPageController.positions.length == 1) {
+        int scrollControllerPositionsLength = childPageController.positions.length;
+        print("Scroll Controller Positions Length: $scrollControllerPositionsLength");
+        if (scrollControllerPositionsLength == 1) {
           _getCurrentChildPageController().jumpToPage(currentChildPage);
         }
       }
