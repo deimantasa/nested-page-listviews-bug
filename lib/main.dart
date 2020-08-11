@@ -34,7 +34,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   List<List<FlutterLogo>> _listOfFlutterLogos = [];
   int _currentPage = 0;
-  Map<int, int> childSelectionMap = {};
+  Map<int, int> _childSelectionMap = {};
 
   @override
   void dispose() {
@@ -85,7 +85,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       controller: _childPageController,
                       onPageChanged: (childPage) {
                         setState(() {
-                          childSelectionMap[_currentPage] = childPage;
+                          _childSelectionMap[_currentPage] = childPage;
                         });
                       },
                       itemCount: flutterLogos.length,
@@ -121,7 +121,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 child: flutterLogos[flutterLogoIndex],
                               ),
                               Container(
-                                color: childSelectionMap[_currentPage] == flutterLogoIndex ? Colors.blue : Colors.transparent,
+                                color: _childSelectionMap[_currentPage] == flutterLogoIndex ? Colors.blue : Colors.transparent,
                                 height: 10,
                                 width: 20,
                               )
